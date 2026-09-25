@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ITHACA AFib SQL Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --accent-bg: #eff6ff;
+      --sql-bg: #0f172a;
+      --sql-text: #f8fafc;
+      --radius: 10px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 32px 24px;
+    }
+
+    .header {
+      max-width: 1400px;
+      margin: 0 auto 24px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .header h1 { font-size: 1.5rem; font-weight: 700; }
+    .header p { color: var(--text-muted); font-size: 0.875rem; margin-top: 4px; }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .card-title { font-size: 1.1rem; font-weight: 600; }
+
+    /* Timepoint Selection Box */
+    .timepoint-card {
+      background: var(--accent-bg);
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+
+    .timepoint-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #1e40af;
+      margin-bottom: 8px;
+    }
+
+    .timepoint-grid {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tp-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid #93c5fd;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #1e3a8a;
+      cursor: pointer;
+    }
+
+    .schema-group {
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .group-title {
+      background: #f8fafc;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #334155;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .grid-checkboxes {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.825rem;
+      color: #475569;
+      cursor: pointer;
+    }
+
+    .checkbox-item input, .tp-chip input {
+      accent-color: var(--primary);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    .sql-box {
+      background: var(--sql-bg);
+      color: var(--sql-text);
+      font-family: 'Fira Code', monospace;
+      padding: 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 320px;
+      max-height: 550px;
+      overflow-y: auto;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+
+    .explainer-card {
+      margin-top: 16px;
+      padding: 12px;
+      background: #f1f5f9;
+      border-left: 4px solid var(--primary);
+      border-radius: 0 6px 6px 0;
+      font-size: 0.825rem;
+      color: #334155;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>ITHACA AFib SQL Generator</h1>
+      <p>Select target fields and time points to construct clean SQL queries.</p>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- LEFT PANEL: SELECTION -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">1. Variable & Timepoint Selection</span>
+      </div>
+
+      <!-- GLOBAL TIMEPOINT PICKER FOR SECONDARY TABLES -->
+      <div class="timepoint-card">
+        <div class="timepoint-title">⏱️ Step A: Select Time Points for Medications, Labs & Vitals</div>
+        <div class="timepoint-grid">
+          <label class="tp-chip"><input type="checkbox" value="hx" onchange="buildSQL()"> History (hx)</label>
+          <label class="tp-chip"><input type="checkbox" value="baseline" checked onchange="buildSQL()"> Baseline</label>
+          <label class="tp-chip"><input type="checkbox" value="3M" checked onchange="buildSQL()"> 3M</label>
+          <label class="tp-chip"><input type="checkbox" value="6M" onchange="buildSQL()"> 6M</label>
+          <label class="tp-chip"><input type="checkbox" value="12M" checked onchange="buildSQL()"> 12M</label>
+          <label class="tp-chip"><input type="checkbox" value="24M" onchange="buildSQL()"> 24M</label>
+        </div>
+      </div>
+
+      <!-- FIELD SELECTION GROUPS -->
+      <div class="timepoint-title" style="color: var(--text); margin-bottom: 8px;">📋 Step B: Select Data Fields</div>
+      <div id="schemaContainer" style="overflow-y: auto; max-height: 500px;"></div>
+    </div>
+
+    <!-- RIGHT PANEL: GENERATED SQL -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">2. Generated SQL Query</span>
+      </div>
+
+      <div class="sql-box" id="sqlOutput">-- Select variables on the left to generate query...</div>
+
+      <button class="btn-primary" onclick="copySQL()">Copy SQL Query</button>
+
+      <div class="explainer-card">
+        <b>How Column Generation Works:</b>
+        <div id="explainerText">Selecting an item (e.g. AAD) and time points (Baseline, 3M) will automatically construct column names like <code>MEDICATIONS.AAD_baseline</code> and <code>MEDICATIONS.AAD_3M</code>.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DEFINE SCHEMA
+    const schema = {
+      BASE: {
+        label: "ITHACA_AFIB_BASE_DT (Base Cohort)",
+        table: "ITHACA_AFIB_BASE_DT",
+        isBase: true,
+        hasTimepoints: false,
+        fields: [
+          "epi", "index_ablation_date", "t0", "recurrence_flag", "first_recurrence_date", "last_recurrence_date",
+          "dob", "death_date", "gender", "race", "language", "ethnicity",
+          "htn", "diabetes", "cancer", "phtn", "hf", "ht",
+          "dccv_3m", "dccv_12m", "dccv_24m",
+          "ablation_3m", "ablation_12m", "ablation_24m",
+          "recurrence_3m", "recurrence_12m", "recurrence_24m"
+        ]
+      },
+      MEDICATIONS: {
+        label: "MEDICATIONS",
+        table: "MEDICATIONS",
+        isBase: false,
+        hasTimepoints: true,
+        joinOn: "MEDICATIONS.epi = ITHACA_AFIB_BASE_DT.epi",
+        items: ["AAD", "Anticoagulants", "Beta_Blockers", "ACEi_ARB", "Statins", "Diuretics"]
+      },
+      LABS: {
+        label: "LABS",
+        table: "LABS",
+        isBase: false,
+        hasTimepoints: true,
+        joinOn: "LABS.epi = ITHACA_AFIB_BASE_DT.epi",
+        items: ["HbA1c", "BNP", "Creatinine", "eGFR", "K_level", "INR"]
+      },
+      VITALS: {
+        label: "VITALS",
+        table: "VITALS",
+        isBase: false,
+        hasTimepoints: true,
+        joinOn: "VITALS.epi = ITHACA_AFIB_BASE_DT.epi",
+        items: ["Systolic_BP", "Diastolic_BP", "Heart_Rate", "BMI", "Weight"]
+      }
+    };
+
+    function renderSchema() {
+      const container = document.getElementById('schemaContainer');
+      container.innerHTML = '';
+
+      Object.keys(schema).forEach(groupKey => {
+        const group = schema[groupKey];
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'schema-group';
+
+        let html = `<div class="group-title">${group.label}</div><div class="grid-checkboxes">`;
+
+        if (group.isBase) {
+          group.fields.forEach(field => {
+            html += `
+              <label class="checkbox-item">
+                <input type="checkbox" data-group="${groupKey}" data-table="${group.table}" data-field="${field}" onchange="buildSQL()">
+                ${field}
+              </label>
+            `;
+          });
+        } else {
+          // Secondary tables list base item names (e.g., AAD, HbA1c)
+          group.items.forEach(item => {
+            html += `
+              <label class="checkbox-item">
+                <input type="checkbox" data-group="${groupKey}" data-table="${group.table}" data-item="${item}" onchange="buildSQL()">
+                ${item}
+              </label>
+            `;
+          });
+        }
+
+        html += `</div>`;
+        groupDiv.innerHTML = html;
+        container.appendChild(groupDiv);
+      });
+    }
+
+    function getSelectedTimepoints() {
+      const tpBoxes = document.querySelectorAll('.timepoint-card input[type="checkbox"]:checked');
+      return Array.from(tpBoxes).map(cb => cb.value);
+    }
+
+    function buildSQL() {
+      const checkboxes = document.querySelectorAll('#schemaContainer input[type="checkbox"]:checked');
+      const timepoints = getSelectedTimepoints();
+
+      if (checkboxes.length === 0) {
+        document.getElementById('sqlOutput').textContent = "-- Select variables on the left to generate query...";
+        return;
+      }
+
+      const selectLines = [];
+      const joinsToMake = new Set();
+
+      checkboxes.forEach(cb => {
+        const groupKey = cb.getAttribute('data-group');
+        const groupObj = schema[groupKey];
+
+        if (groupObj.isBase) {
+          const field = cb.getAttribute('data-field');
+          selectLines.push(`  ${groupObj.table}.${field}`);
+        } else {
+          // Secondary Table Items: dynamically attach timepoints
+          const item = cb.getAttribute('data-item');
+          joinsToMake.add(groupKey);
+
+          if (timepoints.length === 0) {
+            selectLines.push(`  ${groupObj.table}.${item}_[SELECT_TIMEPOINT]`);
+          } else {
+            timepoints.forEach(tp => {
+              selectLines.push(`  ${groupObj.table}.${item}_${tp}`);
+            });
+          }
+        }
+      });
+
+      let sql = `SELECT\n${selectLines.join(',\n')}\nFROM\n  ITHACA_AFIB_BASE_DT`;
+
+      joinsToMake.forEach(groupKey => {
+        const g = schema[groupKey];
+        sql += `\nLEFT JOIN ${g.table}\n  ON ${g.joinOn}`;
+      });
+
+      sql += `;`;
+      document.getElementById('sqlOutput').textContent = sql;
+    }
+
+    function copySQL() {
+      const sqlText = document.getElementById('sqlOutput').textContent;
+      if (sqlText.startsWith('--')) return;
+      navigator.clipboard.writeText(sqlText);
+      alert('SQL query copied to clipboard!');
+    }
+
+    window.onload = renderSchema;
+  </script>
+</body>
+</html>

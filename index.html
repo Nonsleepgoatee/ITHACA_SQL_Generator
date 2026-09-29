@@ -70,7 +70,36 @@
 
     .card-title { font-size: 1.1rem; font-weight: 600; }
 
-    /* Timepoint Selection Box */
+    .selector-card {
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .selector-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 16px;
+    }
+
+    .radio-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--primary);
+    }
+
     .timepoint-card {
       background: var(--accent-bg);
       border: 1px solid #bfdbfe;
@@ -88,7 +117,7 @@
 
     .timepoint-grid {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
@@ -139,10 +168,8 @@
       cursor: pointer;
     }
 
-    .checkbox-item input, .tp-chip input {
+    .checkbox-item input, .tp-chip input, .radio-label input {
       accent-color: var(--primary);
-      width: 15px;
-      height: 15px;
       cursor: pointer;
     }
 
@@ -152,12 +179,12 @@
       font-family: 'Fira Code', monospace;
       padding: 18px;
       border-radius: 8px;
-      font-size: 0.85rem;
+      font-size: 0.825rem;
       line-height: 1.6;
       white-space: pre-wrap;
       word-break: break-word;
-      min-height: 320px;
-      max-height: 550px;
+      min-height: 360px;
+      max-height: 600px;
       overflow-y: auto;
     }
 
@@ -189,8 +216,8 @@
 
   <div class="header">
     <div>
-      <h1>ITHACA AFib SQL Generator</h1>
-      <p>Select target fields and time points to construct clean SQL queries.</p>
+      <h1>ITHACA AFib SQL Query Builder</h1>
+      <p>Select your base cohort and variable fields to construct precise SQL queries across connected datasets.</p>
     </div>
   </div>
 
@@ -198,25 +225,40 @@
     <!-- LEFT PANEL: SELECTION -->
     <div class="card">
       <div class="card-header">
-        <span class="card-title">1. Variable & Timepoint Selection</span>
+        <span class="card-title">1. Cohort & Variable Selection</span>
       </div>
 
-      <!-- GLOBAL TIMEPOINT PICKER FOR SECONDARY TABLES -->
+      <!-- STEP A: BASE COHORT SELECTOR -->
+      <div class="selector-card">
+        <div class="selector-title">📌 Step A: Choose Base Cohort Table</div>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="baseCohort" value="afib_dt" checked onchange="buildSQL()"> Index Ablation Base (afib_dt)
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="baseCohort" value="ablation_dt" onchange="buildSQL()"> All Ablations Base (ablation_dt)
+          </label>
+        </div>
+      </div>
+
+      <!-- STEP B: TIMEPOINT SELECTOR -->
       <div class="timepoint-card">
-        <div class="timepoint-title">⏱️ Step A: Select Time Points for Medications, Labs & Vitals</div>
+        <div class="timepoint-title">⏱️ Step B: Select Time Points for Secondary Metrics</div>
         <div class="timepoint-grid">
-          <label class="tp-chip"><input type="checkbox" value="hx" onchange="buildSQL()"> History (hx)</label>
-          <label class="tp-chip"><input type="checkbox" value="baseline" checked onchange="buildSQL()"> Baseline</label>
+          <label class="tp-chip"><input type="checkbox" value="baseline" checked onchange="buildSQL()"> Baseline / Hx</label>
+          <label class="tp-chip"><input type="checkbox" value="before_ablation" onchange="buildSQL()"> Before Ablation</label>
+          <label class="tp-chip"><input type="checkbox" value="ablation" onchange="buildSQL()"> Ablation Event</label>
           <label class="tp-chip"><input type="checkbox" value="3M" checked onchange="buildSQL()"> 3M</label>
           <label class="tp-chip"><input type="checkbox" value="6M" onchange="buildSQL()"> 6M</label>
           <label class="tp-chip"><input type="checkbox" value="12M" checked onchange="buildSQL()"> 12M</label>
           <label class="tp-chip"><input type="checkbox" value="24M" onchange="buildSQL()"> 24M</label>
+          <label class="tp-chip"><input type="checkbox" value="36M" onchange="buildSQL()"> 36M</label>
         </div>
       </div>
 
-      <!-- FIELD SELECTION GROUPS -->
-      <div class="timepoint-title" style="color: var(--text); margin-bottom: 8px;">📋 Step B: Select Data Fields</div>
-      <div id="schemaContainer" style="overflow-y: auto; max-height: 500px;"></div>
+      <!-- STEP C: VARIABLE SELECTION GROUPS -->
+      <div class="selector-title" style="margin-bottom: 8px;">📋 Step C: Select Variables</div>
+      <div id="schemaContainer" style="overflow-y: auto; max-height: 480px;"></div>
     </div>
 
     <!-- RIGHT PANEL: GENERATED SQL -->
@@ -230,54 +272,170 @@
       <button class="btn-primary" onclick="copySQL()">Copy SQL Query</button>
 
       <div class="explainer-card">
-        <b>How Column Generation Works:</b>
-        <div id="explainerText">Selecting an item (e.g. AAD) and time points (Baseline, 3M) will automatically construct column names like <code>MEDICATIONS.AAD_baseline</code> and <code>MEDICATIONS.AAD_3M</code>.</div>
+        <b>Relationship Logic:</b>
+        <div id="explainerText">Secondary tables are joined using composite keys: <code>epi</code> AND matching <code>ablation_date</code>.</div>
       </div>
     </div>
   </div>
 
   <script>
-    // DEFINE SCHEMA
+    // EXACT SCHEMA DEFINITION BASED ON YOUR DATABASE COLUMNS
     const schema = {
-      BASE: {
-        label: "ITHACA_AFIB_BASE_DT (Base Cohort)",
-        table: "ITHACA_AFIB_BASE_DT",
+      afib_dt: {
+        label: "Index Ablation Cohort (afib_dt)",
+        table: "afib_dt",
         isBase: true,
-        hasTimepoints: false,
         fields: [
-          "epi", "index_ablation_date", "t0", "recurrence_flag", "first_recurrence_date", "last_recurrence_date",
-          "dob", "death_date", "gender", "race", "language", "ethnicity",
-          "htn", "diabetes", "cancer", "phtn", "hf", "ht",
-          "dccv_3m", "dccv_12m", "dccv_24m",
-          "ablation_3m", "ablation_12m", "ablation_24m",
-          "recurrence_3m", "recurrence_12m", "recurrence_24m"
+          "epi", "PTNT_FRST_NM", "PTNT_LST_NM", "index_ablation_date", "T0", "PTNT_DOB", "Death_Date", 
+          "overall_recurrence_flag", "first_recurrence_date", "last_recurrence_date", "Touchworks_DxDate", 
+          "Sunrise_DxDate", "MUSE_EKG_Result_DxDate", "First_AAD_Med_Date", "First_ACG_Med_Date", 
+          "ParoxysmalAfib_First", "ParoxysmalAfib_Last", "PersistentAfib_First", "PersistentAfib_Last", 
+          "ChronicAfib_First", "ChronicAfib_Last", "UnspecifiedAFib_First", "UnspecifiedAFib_Last", 
+          "HistoryAFib_First", "HistoryAFib_Last", "Stroke_Indicator", "Stroke_First", "Stroke_Last", 
+          "AblationDate", "CardioversionDate", "firstDxDate_x", "First_EP", "First_Cards", 
+          "PostalCodeAtFirstDx", "DaysBetweenZipandDx", "RecentZip", "RecentZipDate", "Race", "Ethnicity", 
+          "gender", "Language", "epic_pat_id", "scm_patientDimID", "SCM_clientguid", "TW_Patient_id", 
+          "htn", "diabetes", "CHF", "CHD", "NICM", "vhd", "pad", "hld", "cancer", "prior_TIA", "prior_MI", 
+          "CKD", "COPD", "TD", "HypoT", "HyperT", "VT", "ESRD", "CLD", "HT", "PHTN", "asthma", "CRV", 
+          "OSA", "SSB", "amyloid", "sarcoid", "PE", "HCM", "pfa_flag", "pfa_catheter", "energy_pfa", 
+          "energy_rf", "energy_cryo", "lesion_set_clean", "af_type", "stroke_complication_ablation", 
+          "no_complication", "complication_any", "recurrence_3M", "recurrence_12M", "recurrence_last_followup", 
+          "last_followup_date", "DCCV_3M", "DCCV_12M", "DCCV_24M", "ablation_3M", "ablation_12M", 
+          "ablation_24M", "number_of_ablation", "number_of_dccv"
         ]
       },
-      MEDICATIONS: {
-        label: "MEDICATIONS",
-        table: "MEDICATIONS",
-        isBase: false,
-        hasTimepoints: true,
-        joinOn: "MEDICATIONS.epi = ITHACA_AFIB_BASE_DT.epi",
-        items: ["AAD", "Anticoagulants", "Beta_Blockers", "ACEi_ARB", "Statins", "Diuretics"]
+      ablation_dt: {
+        label: "All Ablations Cohort (ablation_dt)",
+        table: "ablation_dt",
+        isBase: true,
+        fields: ["epi", "ablation_date", "ablation_number", "procedure_type", "lesion_set", "energy_source"]
       },
-      LABS: {
-        label: "LABS",
-        table: "LABS",
+      vital_dt: {
+        label: "Vitals (vital_dt)",
+        table: "vital_dt",
         isBase: false,
-        hasTimepoints: true,
-        joinOn: "LABS.epi = ITHACA_AFIB_BASE_DT.epi",
-        items: ["HbA1c", "BNP", "Creatinine", "eGFR", "K_level", "INR"]
+        items: [
+          { name: "BMI", prefix: "bmi" },
+          { name: "Heart Rate", prefix: "hr" },
+          { name: "Systolic BP", prefix: "sys_bp" },
+          { name: "Diastolic BP", prefix: "dia_bp" }
+        ],
+        timepointMap: {
+          baseline: "baseline",
+          "3M": "3M", "6M": "6M", "12M": "12M", "24M": "24M", "36M": "36M"
+        }
       },
-      VITALS: {
-        label: "VITALS",
-        table: "VITALS",
+      lab_dt: {
+        label: "Labs (lab_dt)",
+        table: "lab_dt",
         isBase: false,
-        hasTimepoints: true,
-        joinOn: "VITALS.epi = ITHACA_AFIB_BASE_DT.epi",
-        items: ["Systolic_BP", "Diastolic_BP", "Heart_Rate", "BMI", "Weight"]
+        items: [
+          { name: "Creatinine", prefix: "creatinine" },
+          { name: "eGFR", prefix: "egfr" },
+          { name: "Pro-BNP", prefix: "pro_bnp" },
+          { name: "Magnesium", prefix: "magnesium" },
+          { name: "Sodium", prefix: "sodium" },
+          { name: "Potassium", prefix: "potassium" },
+          { name: "BUN", prefix: "bun" },
+          { name: "Glucose", prefix: "glucose" },
+          { name: "HbA1c", prefix: "a1c" },
+          { name: "Total Cholesterol", prefix: "ttl_chol" },
+          { name: "HDL Cholesterol", prefix: "hdl_chol" },
+          { name: "Hemoglobin", prefix: "hgb" }
+        ],
+        timepointMap: {
+          baseline: "baseline",
+          "3M": "3M", "6M": "6M", "12M": "12M", "24M": "24M", "36M": "36M"
+        }
+      },
+      med_dt: {
+        label: "Medications (med_dt)",
+        table: "med_dt",
+        isBase: false,
+        items: [
+          { name: "Beta Blocker (BB)", prefix: "BB" },
+          { name: "Calcium Channel Blocker (CCB)", prefix: "CCB" },
+          { name: "Antiarrhythmic (AAD)", prefix: "AAD" },
+          { name: "Warfarin", prefix: "Warfarin" },
+          { name: "DOAC", prefix: "DOAC" },
+          { name: "Anticoagulant (AC)", prefix: "AC" },
+          { name: "Antiplatelet", prefix: "Antiplatelet" },
+          { name: "Vasopressor", prefix: "Vasopressor" },
+          { name: "Statin", prefix: "Statin" },
+          { name: "ACEi", prefix: "ACEi" },
+          { name: "ARB", prefix: "ARB" },
+          { name: "ACEi/ARB Combination", prefix: "ACEi_ARB" },
+          { name: "Direct Renin Inhibitor (DRI)", prefix: "DRI" },
+          { name: "Thiazide", prefix: "Thiazide" },
+          { name: "Loop Diuretic", prefix: "LoopDiuretic" },
+          { name: "Diuretic", prefix: "Diuretic" },
+          { name: "SGLT2i", prefix: "SGLT2i" },
+          { name: "GLP1RA", prefix: "GLP1RA" }
+        ],
+        timepointMap: {
+          baseline: "Hx",
+          "3M": "3M", "6M": "6M", "12M": "12M", "24M": "24M"
+        }
+      },
+      inpatient_admit_dt: {
+        label: "Inpatient Admissions (inpatient_admit_dt)",
+        table: "inpatient_admit_dt",
+        isBase: false,
+        items: [
+          { name: "AFib Admission", prefix: "afib_admit" },
+          { name: "SVT/VT Admission", prefix: "svt_vt_admit" },
+          { name: "Stroke Admission", prefix: "stroke_admit" },
+          { name: "STEMI Admission", prefix: "STEMI_admit" },
+          { name: "NSTEMI Admission", prefix: "NSTEMI_admit" },
+          { name: "COPD Admission", prefix: "COPD_admit" },
+          { name: "Dyspnea Admission", prefix: "dyspnea_admit" },
+          { name: "Syncope Admission", prefix: "syncope_admit" },
+          { name: "VF Admission", prefix: "vf_admit" },
+          { name: "SSB Admission", prefix: "ssb_admit" },
+          { name: "SND Admission", prefix: "snd_admit" },
+          { name: "TBS Admission", prefix: "tbs_admit" }
+        ],
+        timepointMap: {
+          before_ablation: "before_ablation",
+          ablation: "ablation",
+          "3M": "3M", "6M": "6M", "12M": "12M", "24M": "24M", "36M": "36M"
+        }
+      },
+      intervention_dt: {
+        label: "Interventions (intervention_dt)",
+        table: "intervention_dt",
+        isBase: false,
+        items: [
+          { name: "Cardioversion (CV)", prefix: "CV" },
+          { name: "AF Ablation", prefix: "AF_ablation" },
+          { name: "AFL/SVT Ablation", prefix: "AFL_SVT_ablation" },
+          { name: "AV Node Ablation", prefix: "AV_node_ablation" }
+        ],
+        timepointMap: {
+          before_ablation: "before_ablation",
+          ablation: "ablation",
+          "3M": "3M", "6M": "6M", "12M": "12M", "24M": "24M", "36M": "36M"
+        }
+      },
+      echo_dt: {
+        label: "ECHO LVEF (echo_dt)",
+        table: "echo_dt",
+        isBase: false,
+        items: [
+          { name: "LVEF Value", prefix: "lvef" },
+          { name: "LVEF Assessment Date", prefix: "lvef_date" }
+        ],
+        timepointMap: {
+          baseline: "baseline",
+          "3M": "3M", "6M": "6M", "12M": "12M", "24M": "24M", "36M": "36M"
+        }
       }
     };
+
+    function getSelectedBaseTable() {
+      const selected = document.querySelector('input[name="baseCohort"]:checked');
+      return selected ? selected.value : 'afib_dt';
+    }
 
     function renderSchema() {
       const container = document.getElementById('schemaContainer');
@@ -285,36 +443,45 @@
 
       Object.keys(schema).forEach(groupKey => {
         const group = schema[groupKey];
+        if (group.isBase) return; // Render secondary tables only in checklist
+
         const groupDiv = document.createElement('div');
         groupDiv.className = 'schema-group';
 
         let html = `<div class="group-title">${group.label}</div><div class="grid-checkboxes">`;
 
-        if (group.isBase) {
-          group.fields.forEach(field => {
-            html += `
-              <label class="checkbox-item">
-                <input type="checkbox" data-group="${groupKey}" data-table="${group.table}" data-field="${field}" onchange="buildSQL()">
-                ${field}
-              </label>
-            `;
-          });
-        } else {
-          // Secondary tables list base item names (e.g., AAD, HbA1c)
-          group.items.forEach(item => {
-            html += `
-              <label class="checkbox-item">
-                <input type="checkbox" data-group="${groupKey}" data-table="${group.table}" data-item="${item}" onchange="buildSQL()">
-                ${item}
-              </label>
-            `;
-          });
-        }
+        group.items.forEach(item => {
+          html += `
+            <label class="checkbox-item">
+              <input type="checkbox" data-group="${groupKey}" data-table="${group.table}" data-prefix="${item.prefix}" onchange="buildSQL()">
+              ${item.name}
+            </label>
+          `;
+        });
 
         html += `</div>`;
         groupDiv.innerHTML = html;
         container.appendChild(groupDiv);
       });
+
+      // Also add Base Table field options section
+      const baseKey = getSelectedBaseTable();
+      const baseGroup = schema[baseKey];
+      const baseDiv = document.createElement('div');
+      baseDiv.className = 'schema-group';
+      let baseHtml = `<div class="group-title">${baseGroup.label} Fields</div><div class="grid-checkboxes">`;
+      
+      baseGroup.fields.forEach(field => {
+        baseHtml += `
+          <label class="checkbox-item">
+            <input type="checkbox" data-base-field="${field}" onchange="buildSQL()">
+            ${field}
+          </label>
+        `;
+      });
+      baseHtml += `</div>`;
+      baseDiv.innerHTML = baseHtml;
+      container.insertBefore(baseDiv, container.firstChild);
     }
 
     function getSelectedTimepoints() {
@@ -323,48 +490,65 @@
     }
 
     function buildSQL() {
-      const checkboxes = document.querySelectorAll('#schemaContainer input[type="checkbox"]:checked');
-      const timepoints = getSelectedTimepoints();
+      const currentBase = getSelectedBaseTable();
+      const baseDateCol = (currentBase === 'afib_dt') ? 'index_ablation_date' : 'ablation_date';
+      
+      const baseCheckboxes = document.querySelectorAll('input[data-base-field]:checked');
+      const secondaryCheckboxes = document.querySelectorAll('input[data-prefix]:checked');
+      const selectedTimepoints = getSelectedTimepoints();
 
-      if (checkboxes.length === 0) {
+      if (baseCheckboxes.length === 0 && secondaryCheckboxes.length === 0) {
         document.getElementById('sqlOutput').textContent = "-- Select variables on the left to generate query...";
         return;
       }
 
       const selectLines = [];
-      const joinsToMake = new Set();
+      const joinedTables = new Set();
 
-      checkboxes.forEach(cb => {
-        const groupKey = cb.getAttribute('data-group');
-        const groupObj = schema[groupKey];
-
-        if (groupObj.isBase) {
-          const field = cb.getAttribute('data-field');
-          selectLines.push(`  ${groupObj.table}.${field}`);
-        } else {
-          // Secondary Table Items: dynamically attach timepoints
-          const item = cb.getAttribute('data-item');
-          joinsToMake.add(groupKey);
-
-          if (timepoints.length === 0) {
-            selectLines.push(`  ${groupObj.table}.${item}_[SELECT_TIMEPOINT]`);
-          } else {
-            timepoints.forEach(tp => {
-              selectLines.push(`  ${groupObj.table}.${item}_${tp}`);
-            });
-          }
-        }
+      // 1. Process Base Table Selected Fields
+      baseCheckboxes.forEach(cb => {
+        const field = cb.getAttribute('data-base-field');
+        selectLines.push(`  ${currentBase}.${field}`);
       });
 
-      let sql = `SELECT\n${selectLines.join(',\n')}\nFROM\n  ITHACA_AFIB_BASE_DT`;
+      // 2. Process Secondary Tables Selected Fields
+      secondaryCheckboxes.forEach(cb => {
+        const groupKey = cb.getAttribute('data-group');
+        const table = cb.getAttribute('data-table');
+        const prefix = cb.getAttribute('data-prefix');
+        const groupObj = schema[groupKey];
 
-      joinsToMake.forEach(groupKey => {
-        const g = schema[groupKey];
-        sql += `\nLEFT JOIN ${g.table}\n  ON ${g.joinOn}`;
+        joinedTables.add(table);
+
+        selectedTimepoints.forEach(tp => {
+          const mappedTp = groupObj.timepointMap[tp];
+          if (mappedTp) {
+            // Echo date columns construct differently (e.g., lvef_3M_date)
+            let colName = `${prefix}_${mappedTp}`;
+            if (prefix === 'lvef_date') {
+              colName = `lvef_${mappedTp}_date`;
+            }
+            selectLines.push(`  ${table}.${colName}`);
+          }
+        });
+      });
+
+      // 3. Assemble Query SQL String
+      let sql = `SELECT\n${selectLines.join(',\n')}\nFROM\n  ${currentBase}`;
+
+      joinedTables.forEach(table => {
+        sql += `\nLEFT JOIN ${table}\n  ON ${table}.epi = ${currentBase}.epi\n  AND ${table}.ablation_date = ${currentBase}.${baseDateCol}`;
       });
 
       sql += `;`;
       document.getElementById('sqlOutput').textContent = sql;
+
+      // Update Explanation
+      let explanation = `Querying base cohort table <b>${currentBase}</b>.`;
+      if (joinedTables.size > 0) {
+        explanation += ` Joined with <b>${Array.from(joinedTables).join(', ')}</b> on composite key (<code>epi</code> AND <code>ablation_date</code>).`;
+      }
+      document.getElementById('explainerText').innerHTML = explanation;
     }
 
     function copySQL() {
@@ -374,7 +558,18 @@
       alert('SQL query copied to clipboard!');
     }
 
-    window.onload = renderSchema;
+    // Re-render schema groups whenever base cohort selection changes
+    document.querySelectorAll('input[name="baseCohort"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        renderSchema();
+        buildSQL();
+      });
+    });
+
+    window.onload = () => {
+      renderSchema();
+      buildSQL();
+    };
   </script>
 </body>
 </html>

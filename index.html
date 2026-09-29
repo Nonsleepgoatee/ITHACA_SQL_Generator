@@ -279,7 +279,7 @@
   </div>
 
   <script>
-    // EXACT SCHEMA DEFINITION BASED ON YOUR DATABASE COLUMNS
+    // FULL SCHEMA DEFINITION WITH ALL ABLATION_DT COLUMNS INCLUDED
     const schema = {
       afib_dt: {
         label: "Index Ablation Cohort (afib_dt)",
@@ -308,7 +308,24 @@
         label: "All Ablations Cohort (ablation_dt)",
         table: "ablation_dt",
         isBase: true,
-        fields: ["epi", "ablation_date", "ablation_number", "procedure_type", "lesion_set", "energy_source"]
+        fields: [
+          "epi", "PTNT_FRST_NM", "PTNT_LST_NM", "ablation_date", "T0", "PTNT_DOB", "Death_Date", 
+          "overall_recurrence_flag", "first_recurrence_date", "last_recurrence_date", "Touchworks_DxDate", 
+          "Sunrise_DxDate", "MUSE_EKG_Result_DxDate", "First_AAD_Med_Date", "First_ACG_Med_Date", 
+          "ParoxysmalAfib_First", "ParoxysmalAfib_Last", "PersistentAfib_First", "PersistentAfib_Last", 
+          "ChronicAfib_First", "ChronicAfib_Last", "UnspecifiedAFib_First", "UnspecifiedAFib_Last", 
+          "HistoryAFib_First", "HistoryAFib_Last", "Stroke_Indicator", "Stroke_First", "Stroke_Last", 
+          "AblationDate", "CardioversionDate", "firstDxDate_x", "First_EP", "First_Cards", "firstDxDate_y", 
+          "PostalCodeAtFirstDx", "DaysBetweenZipandDx", "RecentZip", "RecentZipDate", "Race", "Ethnicity", 
+          "gender", "Language", "epic_pat_id", "scm_patientDimID", "SCM_clientguid", "TW_Patient_id", 
+          "htn", "diabetes", "CHF", "CHD", "NICM", "vhd", "pad", "hld", "cancer", "prior_TIA", "prior_MI", 
+          "CKD", "COPD", "TD", "HypoT", "HyperT", "VT", "ESRD", "CLD", "HT", "PHTN", "asthma", "CRV", 
+          "OSA", "SSB", "amyloid", "sarcoid", "PE", "HCM", "pfa_catheter", "energy_pfa", "energy_rf", 
+          "energy_cryo", "lesion_set_clean", "af_type", "stroke_complication_ablation", "no_complication", 
+          "complication_any", "recurrence_3M", "recurrence_12M", "recurrence_last_followup", "last_followup_date", 
+          "DCCV_3M", "DCCV_12M", "DCCV_24M", "ablation_3M", "ablation_12M", "ablation_24M", 
+          "CLIENT_VISIT_GUID", "is_index", "PFA_flag"
+        ]
       },
       vital_dt: {
         label: "Vitals (vital_dt)",
@@ -443,7 +460,7 @@
 
       Object.keys(schema).forEach(groupKey => {
         const group = schema[groupKey];
-        if (group.isBase) return; // Render secondary tables only in checklist
+        if (group.isBase) return;
 
         const groupDiv = document.createElement('div');
         groupDiv.className = 'schema-group';
@@ -464,7 +481,6 @@
         container.appendChild(groupDiv);
       });
 
-      // Also add Base Table field options section
       const baseKey = getSelectedBaseTable();
       const baseGroup = schema[baseKey];
       const baseDiv = document.createElement('div');
@@ -505,13 +521,11 @@
       const selectLines = [];
       const joinedTables = new Set();
 
-      // 1. Process Base Table Selected Fields
       baseCheckboxes.forEach(cb => {
         const field = cb.getAttribute('data-base-field');
         selectLines.push(`  ${currentBase}.${field}`);
       });
 
-      // 2. Process Secondary Tables Selected Fields
       secondaryCheckboxes.forEach(cb => {
         const groupKey = cb.getAttribute('data-group');
         const table = cb.getAttribute('data-table');
@@ -523,7 +537,6 @@
         selectedTimepoints.forEach(tp => {
           const mappedTp = groupObj.timepointMap[tp];
           if (mappedTp) {
-            // Echo date columns construct differently (e.g., lvef_3M_date)
             let colName = `${prefix}_${mappedTp}`;
             if (prefix === 'lvef_date') {
               colName = `lvef_${mappedTp}_date`;
@@ -533,7 +546,6 @@
         });
       });
 
-      // 3. Assemble Query SQL String
       let sql = `SELECT\n${selectLines.join(',\n')}\nFROM\n  ${currentBase}`;
 
       joinedTables.forEach(table => {
@@ -543,7 +555,6 @@
       sql += `;`;
       document.getElementById('sqlOutput').textContent = sql;
 
-      // Update Explanation
       let explanation = `Querying base cohort table <b>${currentBase}</b>.`;
       if (joinedTables.size > 0) {
         explanation += ` Joined with <b>${Array.from(joinedTables).join(', ')}</b> on composite key (<code>epi</code> AND <code>ablation_date</code>).`;
@@ -558,7 +569,6 @@
       alert('SQL query copied to clipboard!');
     }
 
-    // Re-render schema groups whenever base cohort selection changes
     document.querySelectorAll('input[name="baseCohort"]').forEach(radio => {
       radio.addEventListener('change', () => {
         renderSchema();

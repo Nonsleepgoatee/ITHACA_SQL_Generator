@@ -233,10 +233,10 @@
         <div class="selector-title">📌 Step A: Choose Base Cohort Table</div>
         <div class="radio-group">
           <label class="radio-label">
-            <input type="radio" name="baseCohort" value="afib_dt" checked onchange="buildSQL()"> Index Ablation Base (afib_dt)
+            <input type="radio" name="baseCohort" value="afib_dt" checked onchange="buildSQL()"> Index Ablation Base (ithaca_afib_base_dt_Kai)
           </label>
           <label class="radio-label">
-            <input type="radio" name="baseCohort" value="ablation_dt" onchange="buildSQL()"> All Ablations Base (ablation_dt)
+            <input type="radio" name="baseCohort" value="ablation_dt" onchange="buildSQL()"> All Ablations Base (ithaca_all_ablations)
           </label>
         </div>
       </div>
@@ -279,11 +279,12 @@
   </div>
 
   <script>
-    // FULL SCHEMA DEFINITION WITH ALL ABLATION_DT COLUMNS INCLUDED
+    // FULL SCHEMA DEFINITION WITH UPDATED FULL DATABASE TABLE PATHS
     const schema = {
       afib_dt: {
-        label: "Index Ablation Cohort (afib_dt)",
-        table: "afib_dt",
+        label: "Index Ablation Cohort (ithaca_afib_base_dt_Kai)",
+        table: "prj_irb_230368_afib_ws.ithaca_afib_base_dt_Kai",
+        alias: "afib_dt",
         isBase: true,
         fields: [
           "epi", "PTNT_FRST_NM", "PTNT_LST_NM", "index_ablation_date", "T0", "PTNT_DOB", "Death_Date", 
@@ -305,8 +306,9 @@
         ]
       },
       ablation_dt: {
-        label: "All Ablations Cohort (ablation_dt)",
-        table: "ablation_dt",
+        label: "All Ablations Cohort (ithaca_all_ablations)",
+        table: "qi_workspace.prj_irb_230368_afib_ws.ithaca_all_ablations",
+        alias: "ablation_dt",
         isBase: true,
         fields: [
           "epi", "PTNT_FRST_NM", "PTNT_LST_NM", "ablation_date", "T0", "PTNT_DOB", "Death_Date", 
@@ -328,8 +330,9 @@
         ]
       },
       vital_dt: {
-        label: "Vitals (vital_dt)",
-        table: "vital_dt",
+        label: "Vitals (ithaca_vital_dt)",
+        table: "qi_workspace.prj_irb_230368_afib_ws.ithaca_vital_dt",
+        alias: "vital_dt",
         isBase: false,
         items: [
           { name: "BMI", prefix: "bmi" },
@@ -343,8 +346,9 @@
         }
       },
       lab_dt: {
-        label: "Labs (lab_dt)",
-        table: "lab_dt",
+        label: "Labs (ithaca_lab_dt)",
+        table: "qi_workspace.prj_irb_230368_afib_ws.ithaca_lab_dt",
+        alias: "lab_dt",
         isBase: false,
         items: [
           { name: "Creatinine", prefix: "creatinine" },
@@ -366,8 +370,9 @@
         }
       },
       med_dt: {
-        label: "Medications (med_dt)",
-        table: "med_dt",
+        label: "Medications (ithaca_med_dt)",
+        table: "qi_workspace.prj_irb_230368_afib_ws.ithaca_med_dt",
+        alias: "med_dt",
         isBase: false,
         items: [
           { name: "Beta Blocker (BB)", prefix: "BB" },
@@ -395,8 +400,9 @@
         }
       },
       inpatient_admit_dt: {
-        label: "Inpatient Admissions (inpatient_admit_dt)",
-        table: "inpatient_admit_dt",
+        label: "Inpatient Admissions (ithaca_inpatient_admit_dt)",
+        table: "qi_workspace.prj_irb_230368_afib_ws.ithaca_inpatient_admit_dt",
+        alias: "inpatient_admit_dt",
         isBase: false,
         items: [
           { name: "AFib Admission", prefix: "afib_admit" },
@@ -419,8 +425,9 @@
         }
       },
       intervention_dt: {
-        label: "Interventions (intervention_dt)",
-        table: "intervention_dt",
+        label: "Interventions (ithaca_intervention_dt)",
+        table: "qi_workspace.prj_irb_230368_afib_ws.ithaca_intervention_dt",
+        alias: "intervention_dt",
         isBase: false,
         items: [
           { name: "Cardioversion (CV)", prefix: "CV" },
@@ -435,8 +442,9 @@
         }
       },
       echo_dt: {
-        label: "ECHO LVEF (echo_dt)",
-        table: "echo_dt",
+        label: "ECHO LVEF (ithaca_echo_dt)",
+        table: "qi_workspace.prj_irb_230368_afib_ws.ithaca_echo_dt",
+        alias: "echo_dt",
         isBase: false,
         items: [
           { name: "LVEF Value", prefix: "lvef" },
@@ -449,7 +457,7 @@
       }
     };
 
-    function getSelectedBaseTable() {
+    function getSelectedBaseKey() {
       const selected = document.querySelector('input[name="baseCohort"]:checked');
       return selected ? selected.value : 'afib_dt';
     }
@@ -470,7 +478,7 @@
         group.items.forEach(item => {
           html += `
             <label class="checkbox-item">
-              <input type="checkbox" data-group="${groupKey}" data-table="${group.table}" data-prefix="${item.prefix}" onchange="buildSQL()">
+              <input type="checkbox" data-group="${groupKey}" data-alias="${group.alias}" data-prefix="${item.prefix}" onchange="buildSQL()">
               ${item.name}
             </label>
           `;
@@ -481,7 +489,7 @@
         container.appendChild(groupDiv);
       });
 
-      const baseKey = getSelectedBaseTable();
+      const baseKey = getSelectedBaseKey();
       const baseGroup = schema[baseKey];
       const baseDiv = document.createElement('div');
       baseDiv.className = 'schema-group';
@@ -506,8 +514,11 @@
     }
 
     function buildSQL() {
-      const currentBase = getSelectedBaseTable();
-      const baseDateCol = (currentBase === 'afib_dt') ? 'index_ablation_date' : 'ablation_date';
+      const currentBaseKey = getSelectedBaseKey();
+      const baseObj = schema[currentBaseKey];
+      const baseTablePath = baseObj.table;
+      const baseAlias = baseObj.alias;
+      const baseDateCol = (currentBaseKey === 'afib_dt') ? 'index_ablation_date' : 'ablation_date';
       
       const baseCheckboxes = document.querySelectorAll('input[data-base-field]:checked');
       const secondaryCheckboxes = document.querySelectorAll('input[data-prefix]:checked');
@@ -519,20 +530,20 @@
       }
 
       const selectLines = [];
-      const joinedTables = new Set();
+      const joinedGroupKeys = new Set();
 
       baseCheckboxes.forEach(cb => {
         const field = cb.getAttribute('data-base-field');
-        selectLines.push(`  ${currentBase}.${field}`);
+        selectLines.push(`  ${baseAlias}.${field}`);
       });
 
       secondaryCheckboxes.forEach(cb => {
         const groupKey = cb.getAttribute('data-group');
-        const table = cb.getAttribute('data-table');
+        const alias = cb.getAttribute('data-alias');
         const prefix = cb.getAttribute('data-prefix');
         const groupObj = schema[groupKey];
 
-        joinedTables.add(table);
+        joinedGroupKeys.add(groupKey);
 
         selectedTimepoints.forEach(tp => {
           const mappedTp = groupObj.timepointMap[tp];
@@ -541,23 +552,25 @@
             if (prefix === 'lvef_date') {
               colName = `lvef_${mappedTp}_date`;
             }
-            selectLines.push(`  ${table}.${colName}`);
+            selectLines.push(`  ${alias}.${colName}`);
           }
         });
       });
 
-      let sql = `SELECT\n${selectLines.join(',\n')}\nFROM\n  ${currentBase}`;
+      let sql = `SELECT\n${selectLines.join(',\n')}\nFROM\n  ${baseTablePath} ${baseAlias}`;
 
-      joinedTables.forEach(table => {
-        sql += `\nLEFT JOIN ${table}\n  ON ${table}.epi = ${currentBase}.epi\n  AND ${table}.ablation_date = ${currentBase}.${baseDateCol}`;
+      joinedGroupKeys.forEach(groupKey => {
+        const gObj = schema[groupKey];
+        sql += `\nLEFT JOIN ${gObj.table} ${gObj.alias}\n  ON ${gObj.alias}.epi = ${baseAlias}.epi\n  AND ${gObj.alias}.ablation_date = ${baseAlias}.${baseDateCol}`;
       });
 
       sql += `;`;
       document.getElementById('sqlOutput').textContent = sql;
 
-      let explanation = `Querying base cohort table <b>${currentBase}</b>.`;
-      if (joinedTables.size > 0) {
-        explanation += ` Joined with <b>${Array.from(joinedTables).join(', ')}</b> on composite key (<code>epi</code> AND <code>ablation_date</code>).`;
+      let explanation = `Querying base cohort table <b>${baseTablePath}</b> (${baseAlias}).`;
+      if (joinedGroupKeys.size > 0) {
+        const joinedAliases = Array.from(joinedGroupKeys).map(k => schema[k].alias).join(', ');
+        explanation += ` Joined with <b>${joinedAliases}</b> on composite key (<code>epi</code> AND <code>ablation_date</code>).`;
       }
       document.getElementById('explainerText').innerHTML = explanation;
     }

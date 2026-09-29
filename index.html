@@ -233,10 +233,10 @@
         <div class="selector-title">📌 Step A: Choose Base Cohort Table</div>
         <div class="radio-group">
           <label class="radio-label">
-            <input type="radio" name="baseCohort" value="afib_dt" checked onchange="buildSQL()"> Index Ablation Base (afib_dt)
+            <input type="radio" name="baseCohort" value="afib_dt" checked onchange="buildSQL()"> Index Ablation Base (ithaca_afib_base_dt_Kai)
           </label>
           <label class="radio-label">
-            <input type="radio" name="baseCohort" value="ablation_dt" onchange="buildSQL()"> All Ablations Base (ablation_dt)
+            <input type="radio" name="baseCohort" value="ablation_dt" onchange="buildSQL()"> All Ablations Base (ithaca_all_ablations)
           </label>
         </div>
       </div>
@@ -279,11 +279,11 @@
   </div>
 
   <script>
-    // FULL SCHEMA DEFINITION WITH ALL ABLATION_DT COLUMNS INCLUDED
+    // DATABASE TABLE NAMES MAPPED TO REAL INSTANCE SCHEMA
     const schema = {
       afib_dt: {
-        label: "Index Ablation Cohort (afib_dt)",
-        table: "afib_dt",
+        label: "Index Ablation Cohort (ithaca_afib_base_dt_Kai)",
+        table: "ithaca_afib_base_dt_Kai",
         isBase: true,
         fields: [
           "epi", "PTNT_FRST_NM", "PTNT_LST_NM", "index_ablation_date", "T0", "PTNT_DOB", "Death_Date", 
@@ -305,8 +305,8 @@
         ]
       },
       ablation_dt: {
-        label: "All Ablations Cohort (ablation_dt)",
-        table: "ablation_dt",
+        label: "All Ablations Cohort (ithaca_all_ablations)",
+        table: "ithaca_all_ablations",
         isBase: true,
         fields: [
           "epi", "PTNT_FRST_NM", "PTNT_LST_NM", "ablation_date", "T0", "PTNT_DOB", "Death_Date", 
@@ -328,8 +328,8 @@
         ]
       },
       vital_dt: {
-        label: "Vitals (vital_dt)",
-        table: "vital_dt",
+        label: "Vitals (ithaca_vital_dt)",
+        table: "ithaca_vital_dt",
         isBase: false,
         items: [
           { name: "BMI", prefix: "bmi" },
@@ -343,8 +343,8 @@
         }
       },
       lab_dt: {
-        label: "Labs (lab_dt)",
-        table: "lab_dt",
+        label: "Labs (ithaca_lab_dt)",
+        table: "ithaca_lab_dt",
         isBase: false,
         items: [
           { name: "Creatinine", prefix: "creatinine" },
@@ -366,8 +366,8 @@
         }
       },
       med_dt: {
-        label: "Medications (med_dt)",
-        table: "med_dt",
+        label: "Medications (ithaca_med_dt)",
+        table: "ithaca_med_dt",
         isBase: false,
         items: [
           { name: "Beta Blocker (BB)", prefix: "BB" },
@@ -395,8 +395,8 @@
         }
       },
       inpatient_admit_dt: {
-        label: "Inpatient Admissions (inpatient_admit_dt)",
-        table: "inpatient_admit_dt",
+        label: "Inpatient Admissions (ithaca_inpatient_admit_dt)",
+        table: "ithaca_inpatient_admit_dt",
         isBase: false,
         items: [
           { name: "AFib Admission", prefix: "afib_admit" },
@@ -419,8 +419,8 @@
         }
       },
       intervention_dt: {
-        label: "Interventions (intervention_dt)",
-        table: "intervention_dt",
+        label: "Interventions (ithaca_intervention_dt)",
+        table: "ithaca_intervention_dt",
         isBase: false,
         items: [
           { name: "Cardioversion (CV)", prefix: "CV" },
@@ -435,8 +435,8 @@
         }
       },
       echo_dt: {
-        label: "ECHO LVEF (echo_dt)",
-        table: "echo_dt",
+        label: "ECHO LVEF (ithaca_echo_dt)",
+        table: "ithaca_echo_dt",
         isBase: false,
         items: [
           { name: "LVEF Value", prefix: "lvef" },
@@ -449,7 +449,7 @@
       }
     };
 
-    function getSelectedBaseTable() {
+    function getSelectedBaseKey() {
       const selected = document.querySelector('input[name="baseCohort"]:checked');
       return selected ? selected.value : 'afib_dt';
     }
@@ -481,7 +481,7 @@
         container.appendChild(groupDiv);
       });
 
-      const baseKey = getSelectedBaseTable();
+      const baseKey = getSelectedBaseKey();
       const baseGroup = schema[baseKey];
       const baseDiv = document.createElement('div');
       baseDiv.className = 'schema-group';
@@ -506,8 +506,10 @@
     }
 
     function buildSQL() {
-      const currentBase = getSelectedBaseTable();
-      const baseDateCol = (currentBase === 'afib_dt') ? 'index_ablation_date' : 'ablation_date';
+      const currentBaseKey = getSelectedBaseKey();
+      const baseObj = schema[currentBaseKey];
+      const baseTablePath = baseObj.table;
+      const baseDateCol = (currentBaseKey === 'afib_dt') ? 'index_ablation_date' : 'ablation_date';
       
       const baseCheckboxes = document.querySelectorAll('input[data-base-field]:checked');
       const secondaryCheckboxes = document.querySelectorAll('input[data-prefix]:checked');
@@ -523,7 +525,7 @@
 
       baseCheckboxes.forEach(cb => {
         const field = cb.getAttribute('data-base-field');
-        selectLines.push(`  ${currentBase}.${field}`);
+        selectLines.push(`  ${baseTablePath}.${field}`);
       });
 
       secondaryCheckboxes.forEach(cb => {
@@ -546,16 +548,16 @@
         });
       });
 
-      let sql = `SELECT\n${selectLines.join(',\n')}\nFROM\n  ${currentBase}`;
+      let sql = `SELECT\n${selectLines.join(',\n')}\nFROM\n  ${baseTablePath}`;
 
       joinedTables.forEach(table => {
-        sql += `\nLEFT JOIN ${table}\n  ON ${table}.epi = ${currentBase}.epi\n  AND ${table}.ablation_date = ${currentBase}.${baseDateCol}`;
+        sql += `\nLEFT JOIN ${table}\n  ON ${table}.epi = ${baseTablePath}.epi\n  AND ${table}.ablation_date = ${baseTablePath}.${baseDateCol}`;
       });
 
       sql += `;`;
       document.getElementById('sqlOutput').textContent = sql;
 
-      let explanation = `Querying base cohort table <b>${currentBase}</b>.`;
+      let explanation = `Querying base cohort table <b>${baseTablePath}</b>.`;
       if (joinedTables.size > 0) {
         explanation += ` Joined with <b>${Array.from(joinedTables).join(', ')}</b> on composite key (<code>epi</code> AND <code>ablation_date</code>).`;
       }
